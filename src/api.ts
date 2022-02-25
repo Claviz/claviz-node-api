@@ -148,4 +148,19 @@ export class ClavizClient {
     async stopBackgroundFunction(functionId: string): Promise<void> {
         await this.axiosInstance.put(`/api/functionsManager/background/${functionId}/stop`);
     }
+
+    /**
+     * Executes a cancellable Claviz Function in separate thread.
+     * @param functionId Function ID.
+     * @param parameters Object representing function parameters.
+     * @param signal A signal object that can be used to cancel the execution.
+     * @returns A promise that resolves to the result of the function.
+     */
+    async executeFunction<T>(functionId: string, parameters: any, signal?: AbortSignal): Promise<T> {
+        const response = await this.axiosInstance.post(`/api/functions/${functionId}`, parameters, {
+            signal
+        });
+
+        return response.data;
+    }
 }

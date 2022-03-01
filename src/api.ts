@@ -1,6 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { BackgroundFunction } from './interfaces/background-function';
 import { FactData } from './interfaces/fact-data';
+import { FactValidationRequest } from './interfaces/fact-validation-request';
+import { FactValidationResult } from './interfaces/fact-validation-result';
 import { FunctionEntity } from './interfaces/function-entity';
 import { SavedFact } from './interfaces/saved-fact';
 import { UserInfo } from './interfaces/user-info';
@@ -159,6 +161,17 @@ export class ClavizClient {
     async executeFunction<T>(functionId: string, parameters: any, signal?: AbortSignal): Promise<T> {
         const response = await this.axiosInstance.post(`/api/functions/${functionId}`, parameters, {
             signal
+        });
+
+        return response.data;
+    }
+
+    async validateFact<T>(collectionId: string, facts: FactValidationRequest<T>[], signal?: AbortSignal): Promise<FactValidationResult<T>> {
+        const response = await this.axiosInstance.post(`/api/factValidation`, {
+            collectionId,
+            facts,
+        }, {
+            signal,
         });
 
         return response.data;

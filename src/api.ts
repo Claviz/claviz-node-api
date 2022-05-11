@@ -84,6 +84,15 @@ export class ClavizClient {
     }
 
     /**
+     * Returns fact history.
+     */
+    async getFactHistory<T>(factId: string): Promise<FactData<T>[]> {
+        const response = await this.axiosInstance.get(`/api/facts/fact-history?factId=${factId}`);
+
+        return response.data;
+    }
+
+    /**
      * Returns all function entities.
      */
     async getFunctionEntities(): Promise<FunctionEntity[]> {

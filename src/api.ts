@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { BackgroundFunction } from './interfaces/background-function';
 import { FactData } from './interfaces/fact-data';
+import { FactHistory } from './interfaces/fact-history';
 import { FactValidationRequest } from './interfaces/fact-validation-request';
 import { FactValidationResult } from './interfaces/fact-validation-result';
 import { FunctionEntity } from './interfaces/function-entity';
@@ -86,8 +87,8 @@ export class ClavizClient {
     /**
      * Returns fact history.
      */
-    async getFactHistory<T>(factId: string): Promise<FactData<T>[]> {
-        const response = await this.axiosInstance.get(`/api/facts/fact-history?factId=${factId}`);
+    async getFactHistory<T>(factId: string, pageIndex = 0, pageSize = 10): Promise<FactHistory<T>> {
+        const response = await this.axiosInstance.get(`/api/facts/fact-history?factId=${factId}&pageIndex=${pageIndex}&pageSize=${pageSize}`);
 
         return response.data;
     }

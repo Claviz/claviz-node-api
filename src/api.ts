@@ -1,5 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { BackgroundFunction } from './interfaces/background-function';
+import { CollectionEntity } from './interfaces/collection-entity';
+import { ComponentEntity } from './interfaces/component-entity';
 import { FactData } from './interfaces/fact-data';
 import { FactHistory } from './interfaces/fact-history';
 import { FactValidationRequest } from './interfaces/fact-validation-request';
@@ -98,6 +100,24 @@ export class ClavizClient {
      */
     async getFunctionEntities(): Promise<FunctionEntity[]> {
         const response = await this.axiosInstance.get(`/api/functionsManager/full`);
+
+        return response.data;
+    }
+
+    /**
+     * Returns all component entities.
+     */
+    async getComponentEntities(): Promise<ComponentEntity[]> {
+        const response = await this.axiosInstance.get(`/api/components/full`);
+
+        return response.data;
+    }
+
+    /**
+     * Returns all collection entities.
+     */
+    async getCollectionEntities(): Promise<CollectionEntity[]> {
+        const response = await this.axiosInstance.get(`/api/collections/full`);
 
         return response.data;
     }

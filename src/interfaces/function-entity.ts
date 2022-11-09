@@ -1,4 +1,6 @@
-export interface FunctionEntity {
+import { BaseEntity } from './base-entity';
+
+export interface FunctionEntity extends BaseEntity {
     description: string;
     parameters: {
         key: string;
@@ -6,12 +8,4 @@ export interface FunctionEntity {
     }[];
     runInBackground: boolean;
     script: string;
-    id: string;
-    label: string;
-    folderId: string;
-    initialHash: string;
-    currentHash: string;
-    modifiedDate: string;
-    createdDate: string;
-    isDefault: boolean;
 }

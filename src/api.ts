@@ -9,6 +9,8 @@ import { FactValidationResult } from './interfaces/fact-validation-result';
 import { FunctionEntity } from './interfaces/function-entity';
 import { SavedFact } from './interfaces/saved-fact';
 import { UserInfo } from './interfaces/user-info';
+import { Branch } from './interfaces/branch';
+import { MigrateFacts } from './interfaces/migrate-facts';
 
 /**
  * Returns a token for the user.
@@ -96,6 +98,35 @@ export class ClavizClient {
     }
 
     /**
+     * Returns all branches in the system.
+     */
+    async getBranches(): Promise<Branch[]> {
+        const response = await this.axiosInstance.get(`/api/branchesManager`);
+
+        return response.data;
+    };
+
+    /**
+     * Returns current user branch.
+     */
+    async getCurrentUserBranch(): Promise<Branch> {
+        const response = await this.axiosInstance.get(`/api/branchesManager/working`);
+
+        return response.data;
+    };
+
+    /**
+     * Migrates facts from one branch to another.
+     * @param options The options for migration.
+     */
+    async migrateFacts(options: MigrateFacts): Promise<any> {
+        const response = await this.axiosInstance.post(`/api/branchesManager/migrate-facts`, options, {
+        });
+
+        return response.data;
+    }
+
+    /**
      * Returns all function entities.
      */
     async getFunctionEntities(): Promise<FunctionEntity[]> {
@@ -115,9 +146,10 @@ export class ClavizClient {
 
     /**
      * Returns all collection entities.
+     * @param branchId The branch ID to get collections from.
      */
-    async getCollectionEntities(): Promise<CollectionEntity[]> {
-        const response = await this.axiosInstance.get(`/api/collections/full`);
+    async getCollectionEntities(branchId = null): Promise<CollectionEntity[]> {
+        const response = await this.axiosInstance.get(branchId ? `/api/collections/full?branchId=${branchId}` : `/api/collections/full`);
 
         return response.data;
     }

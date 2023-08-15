@@ -11,6 +11,7 @@ import { SavedFact } from './interfaces/saved-fact';
 import { UserInfo } from './interfaces/user-info';
 import { Branch } from './interfaces/branch';
 import { MigrateFacts } from './interfaces/migrate-facts';
+import { FunctionInstance } from './interfaces/function-instance';
 
 /**
  * Returns a token for the user.
@@ -214,6 +215,31 @@ export class ClavizClient {
     }
 
     /**
+     * Returns info about all started function instances.
+     */
+    async getStartedFunctionInstances(): Promise<FunctionInstance[]> {
+        const response = await this.axiosInstance.get(`/api/functions/functionInstances`);
+
+        return response.data;
+    }
+
+    /**
+     * Stops function (if it is processing) and deletes it.
+     */
+    async destroyFunctionInstance(functionId: string): Promise<void> {
+        await this.axiosInstance.delete(`/api/functions/functionInstances/${functionId}`);
+    }
+
+    /**
+     * Returns started function info by instance id.
+     */
+    async getFunctionInstanceStatus(functionInstanceId: string): Promise<FunctionInstance> {
+        const response = await this.axiosInstance.get(`/api/functions/functionInstances/${functionInstanceId}`);
+
+        return response.data;
+    }
+
+    /**
      * Executes a cancellable Claviz Function in separate thread.
      * @param functionId Function ID.
      * @param parameters Object representing function parameters.
@@ -222,10 +248,30 @@ export class ClavizClient {
      */
     async executeFunction<T>(functionId: string, parameters: any, signal?: AbortSignal): Promise<T> {
         const response = await this.axiosInstance.post(`/api/functions/${functionId}`, parameters, {
-            signal
+            signal,
         });
+        if (response.status === 202) {
+            while (!signal?.aborted) {
+                const functionInstanceStatus = await this.getFunctionInstanceStatus(response.data.functionInstanceId);
+                if (functionInstanceStatus.status === 'success' || functionInstanceStatus.status === 'error') {
+                    await this.destroyFunctionInstance(response.data.functionInstanceId);
+                }
+                if (functionInstanceStatus.status === 'success') {
+                    return functionInstanceStatus.result;
+                } else if (functionInstanceStatus.status === 'error') {
+                    throw new Error(functionInstanceStatus.error);
+                }
+                await this.sleep(1000 * 10);
+            }
+            await this.destroyFunctionInstance(response.data.functionInstanceId);
+            throw new Error('Canceled');
+        }
 
         return response.data;
+    }
+
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async validateFact<T>(collectionId: string, facts: FactValidationRequest<T>[], signal?: AbortSignal): Promise<FactValidationResult<T>> {

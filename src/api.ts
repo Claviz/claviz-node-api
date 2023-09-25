@@ -244,9 +244,18 @@ export class ClavizClient {
      * @param functionId Function ID.
      * @param parameters Object representing function parameters.
      * @param signal A signal object that can be used to cancel the execution.
+     * @param engineName Name of the engine to use for function execution.
      * @returns A promise that resolves to the result of the function.
      */
-    async executeFunction<T>(functionId: string, parameters: any, signal?: AbortSignal): Promise<T> {
+    async executeFunction<T>(functionId: string, parameters: any, signal?: AbortSignal, engineName?: string): Promise<T> {
+        if (engineName) {
+            parameters = {
+                engineName,
+                functionId,
+                parameters,
+            };
+            functionId = `remoteRunner`;
+        }
         const response = await this.axiosInstance.post(`/api/functions/${functionId}`, parameters, {
             signal,
         });

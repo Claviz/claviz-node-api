@@ -12,6 +12,7 @@ import { UserInfo } from './interfaces/user-info';
 import { Branch } from './interfaces/branch';
 import { MigrateFacts } from './interfaces/migrate-facts';
 import { FunctionInstance } from './interfaces/function-instance';
+import { UserGroup } from './interfaces/user-group';
 
 /**
  * Returns a token for the user.
@@ -169,6 +170,15 @@ export class ClavizClient {
      */
     async getUserList(): Promise<UserInfo[]> {
         const response = await this.axiosInstance.get(`/api/system/user-list`);
+
+        return response.data;
+    }
+
+    /**
+     * Returns list of all user groups in system.
+     */
+    async getUserGroupList(): Promise<UserGroup[]> {
+        const response = await this.axiosInstance.get(`/api/userGroups`);
 
         return response.data;
     }

@@ -13,6 +13,7 @@ import { Branch } from './interfaces/branch';
 import { MigrateFacts } from './interfaces/migrate-facts';
 import { FunctionInstance } from './interfaces/function-instance';
 import { UserGroup } from './interfaces/user-group';
+import { ClavizApiError, toClavizApiError } from './claviz-api-error';
 
 /**
  * Returns a token for the user.
@@ -22,16 +23,34 @@ import { UserGroup } from './interfaces/user-group';
  * @returns A token string.
  */
 export async function getClavizToken(url: string, username: string, password: string): Promise<string> {
-    const response = await axios.get(`${url}/api/version`);
-    const { clavizIdAppName, clavizIdAuthority } = response.data;
-    const tokenResponse = await axios.post(`${clavizIdAuthority}/api/token`, {
-        client_id: `${clavizIdAppName}.resource`,
-        grant_type: 'password',
-        username,
-        password,
-    });
+    try {
+        const response = await axios.get(`${url}/api/version`);
+        const { clavizIdAppName, clavizIdAuthority } = response.data;
+        if (clavizIdAuthority.includes('/realms/')) {
+            const params = new URLSearchParams();
+            params.append('client_id', clavizIdAppName);
+            params.append('grant_type', 'password');
+            params.append('username', username);
+            params.append('password', password);
+            const tokenResponse = await axios.post(`${clavizIdAuthority}protocol/openid-connect/token`, params.toString(), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            });
 
-    return `Bearer ${tokenResponse.data.access_token}`;
+            return `Bearer ${tokenResponse.data.access_token}`;
+        }
+        const tokenResponse = await axios.post(`${clavizIdAuthority}/api/token`, {
+            client_id: `${clavizIdAppName}.resource`,
+            grant_type: 'password',
+            username,
+            password,
+        });
+
+        return `Bearer ${tokenResponse.data.access_token}`;
+    } catch (error) {
+        throw toClavizApiError(error);
+    }
 }
 
 export class ClavizClient {
@@ -45,6 +64,10 @@ export class ClavizClient {
                 'Authorization': token,
             },
         });
+        this.axiosInstance.interceptors.response.use(
+            response => response,
+            error => Promise.reject(toClavizApiError(error)),
+        );
     }
 
     /**
@@ -278,12 +301,12 @@ export class ClavizClient {
                 if (functionInstanceStatus.status === 'success') {
                     return functionInstanceStatus.result;
                 } else if (functionInstanceStatus.status === 'error') {
-                    throw new Error(functionInstanceStatus.error);
+                    throw new ClavizApiError(functionInstanceStatus.error || 'Function execution failed', functionInstanceStatus);
                 }
                 await this.sleep(1000 * 10);
             }
             await this.destroyFunctionInstance(response.data.functionInstanceId);
-            throw new Error('Canceled');
+            throw new ClavizApiError('Request canceled');
         }
 
         return response.data;

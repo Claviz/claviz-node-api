@@ -293,19 +293,34 @@ export class ClavizClient {
             signal,
         });
         if (response.status === 202) {
+            const functionInstanceId = response.data.functionInstanceId;
+            let statusReadFailures = 0;
+
             while (!signal?.aborted) {
-                const functionInstanceStatus = await this.getFunctionInstanceStatus(response.data.functionInstanceId);
-                if (functionInstanceStatus.status === 'success' || functionInstanceStatus.status === 'error') {
-                    await this.destroyFunctionInstance(response.data.functionInstanceId);
+                try {
+                    const functionInstanceStatus = await this.getFunctionInstanceStatus(functionInstanceId);
+                    statusReadFailures = 0;
+
+                    if (functionInstanceStatus.status === 'success' || functionInstanceStatus.status === 'error') {
+                        await this.destroyFunctionInstance(functionInstanceId);
+                    }
+                    if (functionInstanceStatus.status === 'success') {
+                        return functionInstanceStatus.result;
+                    } else if (functionInstanceStatus.status === 'error') {
+                        throw new ClavizApiError(functionInstanceStatus.error || 'Function execution failed', functionInstanceStatus);
+                    }
+                } catch (err) {
+                    statusReadFailures += 1;
+
+                    if (statusReadFailures >= 3) {
+                        throw err;
+                    }
                 }
-                if (functionInstanceStatus.status === 'success') {
-                    return functionInstanceStatus.result;
-                } else if (functionInstanceStatus.status === 'error') {
-                    throw new ClavizApiError(functionInstanceStatus.error || 'Function execution failed', functionInstanceStatus);
-                }
+
                 await this.sleep(1000 * 10);
             }
-            await this.destroyFunctionInstance(response.data.functionInstanceId);
+
+            await this.destroyFunctionInstance(functionInstanceId);
             throw new ClavizApiError('Request canceled');
         }
 

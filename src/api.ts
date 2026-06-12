@@ -63,6 +63,8 @@ export class ClavizClient {
             headers: {
                 'Authorization': token,
             },
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
         });
         this.axiosInstance.interceptors.response.use(
             response => response,

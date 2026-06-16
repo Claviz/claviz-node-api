@@ -299,24 +299,28 @@ export class ClavizClient {
             let statusReadFailures = 0;
 
             while (!signal?.aborted) {
+                let functionInstanceStatus: FunctionInstance;
                 try {
-                    const functionInstanceStatus = await this.getFunctionInstanceStatus(functionInstanceId);
+                    functionInstanceStatus = await this.getFunctionInstanceStatus(functionInstanceId);
                     statusReadFailures = 0;
-
-                    if (functionInstanceStatus.status === 'success' || functionInstanceStatus.status === 'error') {
-                        await this.destroyFunctionInstance(functionInstanceId);
-                    }
-                    if (functionInstanceStatus.status === 'success') {
-                        return functionInstanceStatus.result;
-                    } else if (functionInstanceStatus.status === 'error') {
-                        throw new ClavizApiError(functionInstanceStatus.error || 'Function execution failed', functionInstanceStatus);
-                    }
                 } catch (err) {
                     statusReadFailures += 1;
 
                     if (statusReadFailures >= 3) {
                         throw err;
                     }
+
+                    await this.sleep(1000 * 10);
+                    continue;
+                }
+
+                if (functionInstanceStatus.status === 'success' || functionInstanceStatus.status === 'error') {
+                    await this.destroyFunctionInstance(functionInstanceId);
+                }
+                if (functionInstanceStatus.status === 'success') {
+                    return functionInstanceStatus.result;
+                } else if (functionInstanceStatus.status === 'error') {
+                    throw new ClavizApiError(functionInstanceStatus.error || 'Function execution failed', functionInstanceStatus);
                 }
 
                 await this.sleep(1000 * 10);

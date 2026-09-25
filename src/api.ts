@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { BackgroundFunction } from './interfaces/background-function';
 import { CollectionEntity } from './interfaces/collection-entity';
 import { ComponentEntity } from './interfaces/component-entity';
@@ -53,11 +53,22 @@ export async function getClavizToken(url: string, username: string, password: st
     }
 }
 
+export interface ClavizClientAuthOptions {
+    getFreshToken: () => Promise<string>;
+}
+
+interface AuthenticatedRequestConfig extends AxiosRequestConfig {
+    clavizAuthRetried?: boolean;
+}
+
 export class ClavizClient {
 
     private axiosInstance: AxiosInstance;
+    private token: string;
+    private refreshPromise?: Promise<string>;
 
-    constructor(url: string, token: string) {
+    constructor(url: string, token: string, private authOptions?: ClavizClientAuthOptions) {
+        this.token = token;
         this.axiosInstance = axios.create({
             baseURL: url,
             headers: {
@@ -66,10 +77,47 @@ export class ClavizClient {
             maxContentLength: Infinity,
             maxBodyLength: Infinity,
         });
+        if (authOptions) {
+            this.axiosInstance.interceptors.response.use(
+                response => response,
+                async error => {
+                    const config = error?.config as AuthenticatedRequestConfig | undefined;
+                    if (error?.response?.status !== 401 || !config || config.clavizAuthRetried) {
+                        return Promise.reject(error);
+                    }
+                    config.clavizAuthRetried = true;
+                    if (config.headers?.Authorization === this.token) {
+                        await this.refreshToken();
+                    }
+                    config.headers = { ...config.headers, Authorization: this.token };
+                    return this.axiosInstance.request(config);
+                },
+            );
+        }
         this.axiosInstance.interceptors.response.use(
             response => response,
             error => Promise.reject(toClavizApiError(error)),
         );
+    }
+
+    private async refreshToken(): Promise<string> {
+        if (!this.refreshPromise) {
+            const refresh = Promise.resolve()
+                .then(() => this.authOptions!.getFreshToken())
+                .then(token => {
+                    this.token = token;
+                    Object.assign(this.axiosInstance.defaults.headers, { Authorization: token });
+                    return token;
+                });
+            this.refreshPromise = refresh.then(token => {
+                    this.refreshPromise = undefined;
+                    return token;
+                }, error => {
+                    this.refreshPromise = undefined;
+                    throw error;
+                });
+        }
+        return this.refreshPromise!;
     }
 
     /**

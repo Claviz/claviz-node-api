@@ -121,9 +121,10 @@ export class ClavizClient {
     }
 
     /**
-     * Executes provided expression for collection.
+     * Executes provided expression for collection with the caller's fact rights: `{{collections.x}}` holds only the facts they may view.
+     * Claviz runs queries only for administrators and for app code (scripts Claviz runs, with their `$meta.authToken`).
      * @param expression The expression to execute.
-     * @param userAgnostic If true, the expression will be executed as if it was run by the admin.
+     * @param userAgnostic If true, the expression skips the caller's fact rights and sees every fact. Never set it in code that runs for users.
      * @returns 
      */
     async query<T>(expression: string, userAgnostic: boolean = false): Promise<T[]> {
@@ -136,7 +137,7 @@ export class ClavizClient {
     }
 
     /**
-     * Removes facts by IDs.
+     * Removes facts by IDs, if the caller's rights in their collections allow it.
      * @param factIds array of fact IDs.
      */
     async deleteFacts(factIds: string[]): Promise<void> {
@@ -155,7 +156,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns data about the fact.
+     * Returns a fact the caller may view; canUpdate and canDelete say whether they may also edit or delete it.
      */
     async getFactData<T>(factId: string): Promise<FactData<T>> {
         const response = await this.axiosInstance.get(`/api/facts/fact-data?factId=${factId}`);
@@ -164,7 +165,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns fact history.
+     * Returns the history of a fact the caller may view.
      */
     async getFactHistory<T>(factId: string, pageIndex = 0, pageSize = 10): Promise<FactHistory<T>> {
         const response = await this.axiosInstance.get(`/api/facts/fact-history?factId=${factId}&pageIndex=${pageIndex}&pageSize=${pageSize}`);
@@ -173,7 +174,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns all branches in the system.
+     * Returns all branches in the system. Administrators only.
      */
     async getBranches(): Promise<Branch[]> {
         const response = await this.axiosInstance.get(`/api/branchesManager`);
@@ -191,7 +192,7 @@ export class ClavizClient {
     };
 
     /**
-     * Migrates facts from one branch to another.
+     * Migrates facts from one branch to another. Administrators only.
      * @param options The options for migration.
      */
     async migrateFacts(options: MigrateFacts): Promise<any> {
@@ -202,7 +203,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns all function entities.
+     * Returns all function entities. Administrators only.
      */
     async getFunctionEntities(): Promise<FunctionEntity[]> {
         const response = await this.axiosInstance.get(`/api/functionsManager/full`);
@@ -211,7 +212,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns all component entities.
+     * Returns all component entities. Administrators only.
      */
     async getComponentEntities(): Promise<ComponentEntity[]> {
         const response = await this.axiosInstance.get(`/api/components/full`);
@@ -220,7 +221,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns all collection entities.
+     * Returns all collection entities. Administrators only.
      * @param branchId The branch ID to get collections from.
      */
     async getCollectionEntities(branchId = null): Promise<CollectionEntity[]> {
@@ -230,7 +231,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns all started background functions.
+     * Returns all started background functions. Administrators only.
      */
     async getStartedBackgroundFunctions(): Promise<BackgroundFunction[]> {
         const response = await this.axiosInstance.get(`/api/functionsManager/background`);
@@ -239,7 +240,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns list of all users in system.
+     * Returns everyone with access to Claviz (the User or Admin role), disabled accounts included. Any signed-in person may call it.
      */
     async getUserList(): Promise<UserInfo[]> {
         const response = await this.axiosInstance.get(`/api/system/user-list`);
@@ -248,7 +249,7 @@ export class ClavizClient {
     }
 
     /**
-     * Returns list of all user groups in system.
+     * Returns every user group with its members (`roles`: userId and role). Any signed-in person may call it.
      */
     async getUserGroupList(): Promise<UserGroup[]> {
         const response = await this.axiosInstance.get(`/api/userGroups`);
@@ -257,7 +258,7 @@ export class ClavizClient {
     }
 
     /**
-     * Imports facts in batch.
+     * Imports facts in batch: new facts need the caller's add right, existing ones (with id) their edit right.
      */
     async importFacts<T>(collectionId: string, facts: T[]): Promise<void> {
         const response = await this.axiosInstance.post(`/api/facts/import?collectionId=${collectionId}&verbose=true`, facts);
@@ -266,7 +267,7 @@ export class ClavizClient {
     }
 
     /**
-     * Saves/updates a fact.
+     * Saves a new fact (no factId) or updates one, within the caller's rights. The collection's validation runs first.
      */
     async saveFact<T>(factId: string, collectionId: string, fields: T): Promise<SavedFact<T>> {
         const id = factId;
@@ -284,21 +285,21 @@ export class ClavizClient {
     }
 
     /**
-     * Starts background function.
+     * Starts background function. Administrators only.
      */
     async startBackgroundFunction(functionId: string): Promise<void> {
         await this.axiosInstance.put(`/api/functionsManager/background/${functionId}/start`);
     }
 
     /**
-     * Stops background function.
+     * Stops background function. Administrators only.
      */
     async stopBackgroundFunction(functionId: string): Promise<void> {
         await this.axiosInstance.put(`/api/functionsManager/background/${functionId}/stop`);
     }
 
     /**
-     * Returns info about all started function instances.
+     * Returns info about all started function instances. Administrators only.
      */
     async getStartedFunctionInstances(): Promise<FunctionInstance[]> {
         const response = await this.axiosInstance.get(`/api/functions/functionInstances`);
@@ -307,14 +308,14 @@ export class ClavizClient {
     }
 
     /**
-     * Stops function (if it is processing) and deletes it.
+     * Stops function (if it is processing) and deletes it. People who aren't administrators can stop only their own runs.
      */
     async destroyFunctionInstance(functionId: string): Promise<void> {
         await this.axiosInstance.delete(`/api/functions/functionInstances/${functionId}`);
     }
 
     /**
-     * Returns started function info by instance id.
+     * Returns started function info by instance id. People who aren't administrators see only their own runs.
      */
     async getFunctionInstanceStatus(functionInstanceId: string): Promise<FunctionInstance> {
         const response = await this.axiosInstance.get(`/api/functions/functionInstances/${functionInstanceId}`);
@@ -323,7 +324,7 @@ export class ClavizClient {
     }
 
     /**
-     * Executes a cancellable Claviz Function in separate thread.
+     * Executes a cancellable Claviz Function in separate thread. The function's API access decides who may call it.
      * @param functionId Function ID.
      * @param parameters Object representing function parameters.
      * @param signal A signal object that can be used to cancel the execution.
@@ -385,6 +386,9 @@ export class ClavizClient {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    /**
+     * Runs the collection's validation for facts without saving them. Needs the caller's view right on the collection.
+     */
     async validateFact<T>(collectionId: string, facts: FactValidationRequest<T>[], signal?: AbortSignal): Promise<FactValidationResult<T>> {
         const response = await this.axiosInstance.post(`/api/factValidation`, {
             collectionId,

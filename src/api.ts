@@ -54,7 +54,15 @@ export async function getClavizToken(url: string, username: string, password: st
 }
 
 export interface ClavizClientAuthOptions {
+    /** Returns a new token, with or without the `Bearer ` prefix. */
     getFreshToken: () => Promise<string>;
+}
+
+// The Authorization header for a token given with its scheme (`Bearer eyJ…`, as `$meta.authToken` and getClavizToken
+// return it) or without one (`eyJ…`). An empty token stays empty.
+function authorizationHeader(token: string): string {
+    const value = (token ?? '').trim();
+    return !value || /^[A-Za-z]+ /.test(value) ? value : `Bearer ${value}`;
 }
 
 interface AuthenticatedRequestConfig extends AxiosRequestConfig {
@@ -67,7 +75,14 @@ export class ClavizClient {
     private token: string;
     private refreshPromise?: Promise<string>;
 
+    /**
+     * @param url The url of the Claviz instance, for example `$meta.url`.
+     * @param token The caller's token, with or without the `Bearer ` prefix: `$meta.authToken`, getClavizToken's result
+     * or a token copied elsewhere all work.
+     * @param authOptions Optional: how to get a new token when a request is refused with 401.
+     */
     constructor(url: string, token: string, private authOptions?: ClavizClientAuthOptions) {
+        token = authorizationHeader(token);
         this.token = token;
         this.axiosInstance = axios.create({
             baseURL: url,
@@ -104,7 +119,8 @@ export class ClavizClient {
         if (!this.refreshPromise) {
             const refresh = Promise.resolve()
                 .then(() => this.authOptions!.getFreshToken())
-                .then(token => {
+                .then(fresh => {
+                    const token = authorizationHeader(fresh);
                     this.token = token;
                     Object.assign(this.axiosInstance.defaults.headers, { Authorization: token });
                     return token;
